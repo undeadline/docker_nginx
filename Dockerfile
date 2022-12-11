@@ -1,7 +1,7 @@
 FROM debian:stable-20221114-slim
 
 # Runtime env variables for printing output masseges
-ARG MS_DIVIDER='==================================' \
+ARG MESSAGE_DIVIDER='==================================' \
     DOCKER_MSG_COLOR='\033[92m\033[100m' \
     DOCKER_RESET_COLOR='\033[0m'
 ARG BEF="${DOCKER_MSG_COLOR}\n\n${MESSAGE_DIVIDER}\n" \
@@ -23,7 +23,7 @@ RUN git config --global advice.detachedHead false
 
 # Create directory for git clone program
 RUN echo "${BEF}Create directory for git clone program${AFT}"
-RUN mkdir /tmp/openssl /tmp/curl /tmp/pcre /opt/openssl /opt/curl
+RUN mkdir -p /tmp/openssl /tmp/curl /tmp/pcre /opt/openssl /opt/curl /usr/local/lib64 /usr/local/include/openssl
 
 # Copy ld config file with all paths to dynamic libraries
 RUN echo "${BEF}Copy ld config file with all paths to dynamic libraries${AFT}"
@@ -42,9 +42,12 @@ RUN echo "${BEF}Configure openssl with not default location and run make, make i
 RUN ./Configure --prefix=/opt/openssl && make 1>/dev/null && make install 1>/dev/null
 
 # Create symlink for openssl
-# RUN ln -s /opt/openssl/lib/* /usr/lib64/openssl
-# RUN ln -s /opt/openssl/lib/* /usr/local/lib
-# RUN ln -s /opt/openssl/bin/openssl /usr/bin/openssl
+RUN ln -s /opt/openssl/lib64/libcrypto.so /usr/local/lib64 \
+    && ln -s /opt/openssl/lib64/libssl.so /usr/local/lib64 \
+    && ln -s /opt/openssl/include/openssl/* /usr/local/include/openssl \
+    && ln -s /opt/curl/bin/openssl /usr/local/bin
+
+RUN ldconfig
 
 # Clone Curl package
 RUN echo "${BEF}Clone Curl package${AFT}"
@@ -53,12 +56,13 @@ RUN git clone --depth=1 --branch=curl-7_86_0 https://github.com/curl/curl.git .
 
 # Configure curl with not default location and run make, make install
 RUN echo "${BEF}Configure curl with not default location and run make, make install${AFT}"
-RUN ./configure --with-ssl=/opt/openssl --prefix=/opt/curl LDFLAGS="-L/opt/openssl/lib64" CPPFLAGS="-I/opt/openssl/include" \
+RUN autoreconf -fi
+RUN ./configure --with-ssl=/opt/openssl --prefix=/opt/curl \
     && make 1>/dev/null \
     && make install 1>/dev/null
 
 # Create symlink for curl
 RUN echo "${BEF}Create symlink for curl${AFT}"
-# RUN ln -s /opt/curl/bin/curl /usr/bin/curl
+RUN ln -s /opt/curl/bin/curl /usr/bin/curl
 
 # Clone and build PCRE package

@@ -29,6 +29,7 @@ RUN echo "${BEF}Create directory for git clone program${AFT}" \
     /tmp/openssl \
     /tmp/curl \
     /tmp/pcre \
+    /tmp/nginx \
     /opt/openssl \
     /opt/curl \
     /opt/pcre \
@@ -43,14 +44,15 @@ COPY ld.so.conf /etc
 RUN echo "${BEF}Create new cache file with paths${AFT}" \
     && ldconfig
 
-# Clone OpenSSL(3.1.0-alpha1) package
+# Clone OpenSSL(3.1.0-alpha1) repository
 WORKDIR /tmp/openssl
-RUN echo "${BEF}Clone OpenSSL(3.1.0-alpha1) package${AFT}" \
+RUN echo "${BEF}Clone OpenSSL(3.1.0-alpha1) repository${AFT}" \
     && git clone --depth=1 --branch=openssl-3.1 https://github.com/openssl/openssl.git .
 
 # Configure openssl with not default location and run make, make install
 RUN echo "${BEF}Configure openssl with not default location and run make, make install${AFT}" \
     && ./Configure --prefix=/opt/openssl \
+    && echo "${BEF}Processing install... May take several minutes${AFT}" \
     && make 1>/dev/null \
     && make install 1>/dev/null
 
@@ -61,15 +63,16 @@ RUN ln -s /opt/openssl/lib64/libcrypto.so /usr/local/lib64 \
     && ln -s /opt/curl/bin/openssl /usr/local/bin \
     && ldconfig
 
-# Clone Curl package
+# Clone Curl repository
 WORKDIR /tmp/curl
-RUN echo "${BEF}Clone Curl package${AFT}" \
+RUN echo "${BEF}Clone Curl repository${AFT}" \
     && git clone --depth=1 --branch=curl-7_86_0 https://github.com/curl/curl.git .
 
 # Configure curl with not default location and run make, make install
 RUN echo "${BEF}Configure curl with not default location and run make, make install${AFT}" \
     && autoreconf -fi \
     && ./configure --with-ssl=/opt/openssl --prefix=/opt/curl \
+    && echo "${BEF}Processing install... May take several minutes${AFT}" \
     && make 1>/dev/null \
     && make install 1>/dev/null
 
@@ -79,9 +82,9 @@ RUN echo "${BEF}Create symlink for curl bin and libs${AFT}" \
     && ln -s /opt/curl/lib/libcurl.so /usr/local/lib \
     && ldconfig
 
-# Clone and build PCRE package
+# Clone and build PCRE repository
 WORKDIR /tmp/pcre
-RUN echo "${BEF}Clone and build PCRE package${AFT}" \
+RUN echo "${BEF}Clone and build PCRE repository${AFT}" \
     && git clone --depth=1 --branch=pcre2-10.41 https://github.com/PCRE2Project/pcre2.git .
 
 # Generate configure file
@@ -90,10 +93,23 @@ RUN echo "${BEF}Generate configure file${AFT}" \
 
 # Configure pcre with not default location and run make, make install
 RUN echo "${BEF}Configure pcre with not default location and run make, make install${AFT}" \
-    && ./configure --prefix=/opt/pcre --disable-pcre2-8 --enable-pcre2-32 --enable-jit \
+    && ./configure --prefix=/opt/pcre --enable-jit \
+    && echo "${BEF}Processing install... May take several minutes${AFT}" \
     && make \
     && make install
 
 # Create symlink for pcre libs
 RUN echo "${BEF}Create symlink for pcre libs${AFT}" \
-    && ln -s /opt/pcre/lib/libpcre2-32.so /usr/local/lib
+    && ln -s /opt/pcre/lib/libpcre2.so /usr/local/lib
+
+# Clone NGINX Unit repository
+WORKDIR /tmp/nginx
+RUN echo "${BEF}Clone NGINX Unit repository${AFT}" \
+    && git clone --depth=1 --branch=1.28.0 https://github.com/nginx/unit.git .
+
+# Configure nginx with not default location and run make, make install
+RUN echo "${BEF}Configure nginx with not default location and run make, make install${AFT}" \
+    && ./configure --openssl --prefix=/opt/nginx --log=/var/log/nginx/unit.log --group=www-data --user=www-data \
+    && echo "${BEF}Processing install... May take several minutes${AFT}" \
+    && make \
+    && make install
